@@ -40,7 +40,8 @@ export default async function FeedbackPage({
   // Fetch session and populate template details
   const interviewSession = await InterviewSession.findById(sessionId)
     .populate('template')
-    .lean();
+    .lean()
+    .exec() as any;
 
   if (!interviewSession) {
     return (
@@ -54,10 +55,10 @@ export default async function FeedbackPage({
     );
   }
 
-  // Access Control
+//   Access Control
   const userId = (user as any).id;
   const userEmail = user.email?.toLowerCase();
-  const isSessionOwner = interviewSession.user && interviewSession.user.toString() === userId;
+  const isSessionOwner = Array.isArray(interviewSession.user) ? interviewSession.user.some((u: any) => u.toString() === userId) : interviewSession.user?.toString() === userId;
   const isRecruiterOwner = interviewSession.conductedBy && interviewSession.conductedBy.toString() === userId;
   const isAssignedCandidate = interviewSession.candidateEmail && interviewSession.candidateEmail.toLowerCase() === userEmail;
 

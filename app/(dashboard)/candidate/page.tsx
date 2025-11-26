@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/dbConnect';
 import InterviewTemplate from '@/models/InterviewTemplateModel';
 import InterviewSession from '@/models/InterviewSessionModel';
-import User from '@/models/UserModel'; // Ensure this matches your actual model file name
+import User from '@/models/UserModel'; 
 import { redirect } from 'next/navigation';
 import DashboardClient from './DashboardClient';
 
@@ -25,11 +25,12 @@ export default async function CandidateDashboard() {
 
   const userEmail = user.email.toLowerCase();
 
-  // 1. Fetch User from DB to get the correct _id for relation queries
-  // We use a case-insensitive regex for the email to ensure we find the user even if casing differs
-  const dbUser = await User.findOne({ 
+  // 1. Fetch User from DB
+  // FIX: Cast the result to 'any' to resolve the TypeScript error regarding _id and name access.
+  // Mongoose's .lean() sometimes causes type inference issues where it thinks the result is an array.
+  const dbUser = (await User.findOne({ 
     email: { $regex: new RegExp(`^${userEmail}$`, 'i') } 
-  }).lean();
+  }).lean()) as any;
 
   if (!dbUser) {
     // Fallback if user exists in session but not in DB (edge case)
@@ -37,11 +38,11 @@ export default async function CandidateDashboard() {
     return redirect('/login');
   }
 
+  // Now TypeScript will allow access to .name and ._id without error
   const candidateName = dbUser.name || user.name || 'Candidate';
   const userId = dbUser._id; 
 
   // 2. Fetch Scheduled Interviews (Active Missions)
-  // Recruiters invite by email, so we query by candidateEmail
   const scheduledDocs = await InterviewSession.find({
     candidateEmail: { $regex: new RegExp(`^${userEmail}$`, 'i') },
     status: 'IN_PROGRESS',
@@ -55,7 +56,6 @@ export default async function CandidateDashboard() {
   const scheduledInterviews = JSON.parse(JSON.stringify(scheduledDocs));
 
   // 3. Fetch Completed Interviews (For Stats & History)
-  // We use the stable userId from the DB fetch above
   const completedDocs = await InterviewSession.find({
     user: userId,
     status: 'COMPLETED',

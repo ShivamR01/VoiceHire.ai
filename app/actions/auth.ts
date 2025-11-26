@@ -12,9 +12,13 @@ const signupSchema = z.object({
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters long.'),
-  name: z.string().min(2, 'Name must be at least 2 characters long.'), // Added name validation
-  role: z.enum(['CANDIDATE', 'RECRUITER'], {
-    errorMap: () => ({ message: 'Please select a valid role (Candidate or Recruiter).' }),
+  name: z.string().min(2, 'Name must be at least 2 characters long.'),
+  // FIX: Added 'as const' to the array to strictly define it as a tuple for Zod
+  role: z.enum(['CANDIDATE', 'RECRUITER'] as const).refine(value => {
+    if (value !== 'CANDIDATE' && value !== 'RECRUITER') {
+      throw new Error('Please select a valid role (Candidate or Recruiter).');
+    }
+    return true;
   }),
 });
 
@@ -36,7 +40,7 @@ export async function signupUser(
     };
   }
 
-  const { email, password, role, name } = result.data; // Destructure name
+  const { email, password, role, name } = result.data;
 
   try {
     await dbConnect();
@@ -55,7 +59,7 @@ export async function signupUser(
       email,
       password: hashedPassword,
       role: role,
-      name: name, // Save name
+      name: name, 
     });
 
     return { success: true, message: 'Account created successfully! Please log in.' };
